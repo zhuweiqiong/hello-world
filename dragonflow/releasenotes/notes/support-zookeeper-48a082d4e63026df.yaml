@@ -1,5 +1,0 @@
----
-prelude: >
-    Support Zookeeper driver for Dragonflow
-features:
-  - Support Zookeeper driver for Dragonflow

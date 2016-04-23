@@ -1,7 +1,0 @@
-[run]
-branch = True
-source = dragonflow
-omit = dragonflow/tests/*,dragonflow/openstack/*
-
-[report]
-ignore_errors = True
