@@ -42,6 +42,8 @@ class RedisMgt(object):
         self.calc_key = redis_calckey.key2slot
         self.master_list = []
         self.daemon = df_utils.DFDaemon()
+        self.db_callback = None
+        self.db_recover_callback = None
 
     @staticmethod
     def get_instance(ip, port):
@@ -88,6 +90,9 @@ class RedisMgt(object):
                               "when release default node, %(e)s")
                           % {'e': e})
 
+    def _release_node(self, node):
+        node.connection_pool.get_connection(None, None).disconnect()
+
     # def read_cluster_topology(self):
     #     self.cluster_nodes = self._get_cluster_nodes(self.default_node)
     #     self.master_list = self._parse_to_masterlist()
@@ -110,8 +115,10 @@ class RedisMgt(object):
                 info = self._get_cluster_info(node)
                 if info['cluster_state'] != 'ok':
                     LOG.warning(_LW("redis cluster state failed"))
-                    break
-                new_nodes = self._get_cluster_nodes(node)
+                else:
+                    new_nodes = self._get_cluster_nodes(node)
+
+                self._release_node(node)
                 break
             except Exception:
                 LOG.exception(_LE("exception happened "
@@ -298,6 +305,7 @@ class RedisMgt(object):
                 ip_port = remote_ip_port.split(':')
                 node = redis.StrictRedis(ip_port[0], ip_port[1])
                 RedisMgt.check_connection(node)
+                self._release_node(node)
             return True
         except Exception:
             LOG.exception(_LE("check master nodes connection failed"))
