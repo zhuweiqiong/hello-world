@@ -320,4 +320,6 @@ class RedisMgt(object):
                     self.redis_failover_callback(nodes)
 
             except Exception as e:
-                LOG.exception(e)
+                LOG.exception(_LE("exception happened "
+                                  "when receive messages from plugin, "
+                                  "%(e)s") % {'e': e})
