@@ -270,15 +270,18 @@ class RedisMgt(object):
             self.master_list = self._parse_to_masterlist()
 
             # send restart message
-            if self.db_callback is not None:
-                self.db_callback(None, None, 'dbrestart', None, None)
+            if self._check_master_nodes_connection():
+                if self.db_callback is not None:
+                    self.db_callback(None, None, 'dbrestart', None, None)
+                elif self.db_recover_callback is not None:
+                    self.db_recover_callback()
 
     def register_ha_topic(self):
         if self.subscriber is not None:
             self.subscriber.register_topic('redis')
 
     def set_publisher(self, pub, callback):
-        self.db_callback = callback
+        self.db_recover_callback = callback
         self.publisher = pub
 
     def set_subscriber(self, sub, callback):
@@ -287,6 +290,18 @@ class RedisMgt(object):
 
     def daemonize(self):
         self.daemon.daemonize(self.run)
+
+    def _check_master_nodes_connection(self):
+        try:
+            for remote in self.get_master_list():
+                remote_ip_port = remote['ip_port']
+                ip_port = remote_ip_port.split(':')
+                node = redis.StrictRedis(ip_port[0], ip_port[1])
+                RedisMgt.check_connection(node)
+            return True
+        except Exception:
+            LOG.exception(_LE("check master nodes connection failed"))
+            return False
 
     def run(self):
         while True:
