@@ -243,19 +243,28 @@ class RedisMgt(object):
         if len(old_nodes) < len(new_nodes):
             changed = True
         elif len(old_nodes) == len(new_nodes):
-            cnt = 0
             if 0 == len(old_nodes) and 0 == len(new_nodes):
-                changed = False
+                return False
+
+            cnt = 0
+            master_cnt = 0
+            slave_cnt = 0
 
             for host, info in old_nodes.items():
                 for new_host, new_info in new_nodes.items():
                     if host == new_host and info['role'] == \
                             new_info['role']:
                         cnt += 1
+                        if new_info['role'] == 'master':
+                            master_cnt += 1
+                        else:
+                            slave_cnt += 1
                         break
-
-            if cnt != len(old_nodes):
-                changed = True
+            if master_cnt != slave_cnt:
+                LOG.info(_LI("master nodes not equals to slave nodes"))
+            else:
+                if cnt != len(old_nodes):
+                    changed = True
         else:
             # This scenario can be considerd as en exception and
             # should be recovered by people. Assumed that no scale down in

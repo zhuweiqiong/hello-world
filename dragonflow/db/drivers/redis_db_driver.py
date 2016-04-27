@@ -37,6 +37,7 @@ class RedisDbDriver(db_api.DbApi):
     def _update_server_list(self):
         if self.redis_mgt is not None:
             self.remote_server_lists = self.redis_mgt.get_master_list()
+            self.clients = {}
             for remote in self.remote_server_lists:
                 remote_ip_port = remote['ip_port']
                 ip_port = remote_ip_port.split(':')
