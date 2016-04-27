@@ -318,10 +318,10 @@ class RedisMgt(object):
             try:
                 nodes = self.get_cluster_topology_by_all_nodes()
                 if len(nodes) > 0:
-                    nodes_json = jsonutils.dumps(nodes)
-                    update = DbUpdate('ha', 'nodes', 'set', nodes_json,
-                                      topic='redis')
                     if self.publisher is not None:
+                        nodes_json = jsonutils.dumps(nodes)
+                        update = DbUpdate('ha', 'nodes', 'set', nodes_json,
+                                          topic='redis')
                         self.publisher.send_event(update)
 
                     # process new nodes got

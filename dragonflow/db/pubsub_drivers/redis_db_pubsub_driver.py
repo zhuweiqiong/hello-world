@@ -188,8 +188,9 @@ class RedisSubscriberAgent(pub_sub_api.SubscriberAgentBase):
                                     entry_json['topic'])
                             else:
                                 # redis ha message
+                                value = jsonutils.loads(entry_json['value'])
                                 self.redis_mgt.redis_failover_callback(
-                                    entry_json['value'])
+                                    value)
 
                 else:
                     eventlet.sleep(1)

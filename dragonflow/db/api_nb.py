@@ -34,7 +34,7 @@ LOG = log.getLogger(__name__)
 
 
 DB_ACTION_LIST = ['create', 'set', 'delete', 'log',
-                  'sync', 'sync_started', 'sync_finished']
+                  'sync', 'sync_started', 'sync_finished', 'dbrestart']
 
 
 class NbApi(object):
