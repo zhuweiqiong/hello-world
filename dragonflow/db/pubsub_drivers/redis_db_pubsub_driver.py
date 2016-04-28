@@ -173,9 +173,9 @@ class RedisSubscriberAgent(pub_sub_api.SubscriberAgentBase):
                     for data in self.pub_sub.listen():
                         if 'subscribe' == data['type']:
                             continue
-                        if 'unsubscribe' == data['type']:
+                        elif 'unsubscribe' == data['type']:
                             continue
-                        if 'message' == data['type']:
+                        elif 'message' == data['type']:
                             entry = pub_sub_api.unpack_message(data['data'])
                             entry_json = jsonutils.loads(entry)
 
@@ -191,6 +191,10 @@ class RedisSubscriberAgent(pub_sub_api.SubscriberAgentBase):
                                 value = jsonutils.loads(entry_json['value'])
                                 self.redis_mgt.redis_failover_callback(
                                     value)
+                        else:
+                            LOG.warning(_LW("receive unknown message in "
+                                            "subscriber %(type)s")
+                                        % {'type': data['type']})
 
                 else:
                     eventlet.sleep(1)
