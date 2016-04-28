@@ -261,6 +261,7 @@ class RedisMgt(object):
                             slave_cnt += 1
                         break
             if master_cnt != slave_cnt:
+                # this means a tmp status
                 LOG.info(_LI("master nodes not equals to slave nodes"))
             else:
                 if cnt != len(old_nodes):

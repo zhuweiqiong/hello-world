@@ -90,7 +90,7 @@ class RedisPublisherAgent(pub_sub_api.PublisherApi):
             try:
                 if self.client is not None:
                     self.client.publish(local_topic, data)
-            except Exception as e:
+            except Exception:
                 self.redis_mgt.remove_node_from_master_list(self.remote)
                 self._update_client()
                 LOG.exception(_LE("publish error remote:%(remote)s")
@@ -200,19 +200,23 @@ class RedisSubscriberAgent(pub_sub_api.SubscriberAgentBase):
                                    'port': self.plugin_updates_port})
 
             except Exception as e:
-                LOG.warning(e)
+                LOG.warning(_LW("subscriber listening task lost "
+                                "connection "
+                                "%(e)s") % {'e': e})
+
                 try:
                     connection = self.pub_sub.connection
                     connection.connect()
-                    self.pub_sub.on_connect()
+                    self.pub_sub.on_connect(connection)
                     # self.db_changes_callback(None, None, 'sync', None, None)
                     # todo notify restart
                     self.db_changes_callback(None, None, 'dbrestart', None,
                                              None)
-                except Exception as e:
+                except Exception:
                     self.redis_mgt.remove_node_from_master_list(self.remote)
                     self._update_client()
                     # todo if pubsub not none notify restart
+                    # to re-subscribe
                     self.db_changes_callback(None, None, 'dbrestart', None,
                                              None)
                     LOG.exception(_LE("reconnect error %(ip)s:%(port)s")
