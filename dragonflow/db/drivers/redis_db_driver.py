@@ -17,6 +17,7 @@ from dragonflow.db.drivers.redis_mgt import RedisMgt
 from oslo_log import log
 
 import redis
+import six
 
 LOG = log.getLogger(__name__)
 
@@ -52,7 +53,7 @@ class RedisDbDriver(db_api.DbApi):
         if topic is None:
             local_key = self.uuid_to_key(table, key, '*')
             try:
-                for host, client in self.clients.items():
+                for host, client in six.iteritems(self.clients):
                     ip_port = host
                     local_keys = client.keys(local_key)
                     if len(local_keys) == 1:
@@ -128,7 +129,7 @@ class RedisDbDriver(db_api.DbApi):
         if topic is None:
             local_key = self.uuid_to_key(table, '*', '*')
             try:
-                for host, client in self.clients.items():
+                for host, client in six.iteritems(self.clients):
                     ip_port = host
                     local_keys = client.keys(local_key)
                     if len(local_keys) > 0:
@@ -166,7 +167,7 @@ class RedisDbDriver(db_api.DbApi):
         if topic is None:
             local_key = self.uuid_to_key(table, '*', '*')
             try:
-                for host, client in self.clients.items():
+                for host, client in six.iteritems(self.clients):
                     ip_port = host
                     res.extend(client.keys(local_key))
                 return res

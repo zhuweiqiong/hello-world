@@ -84,7 +84,8 @@ class RedisPublisherAgent(pub_sub_api.PublisherApi):
             if self.client is not None:
                 self.client.publish(local_topic, data)
         except Exception as e:
-            LOG.warning(e)
+            LOG.exception(_LE("publish connection get exception "
+                              "%(e)s") % {'e': e})
             self.redis_mgt.remove_node_from_master_list(self.remote)
             self._update_client()
             try:
@@ -197,11 +198,11 @@ class RedisSubscriberAgent(pub_sub_api.SubscriberAgentBase):
                                         % {'type': data['type']})
 
                 else:
-                    eventlet.sleep(1)
                     LOG.warning(_LW("pubsub lost connection %(ip)s:"
                                     "%(port)s")
                                 % {'ip': self.ip,
                                    'port': self.plugin_updates_port})
+                    eventlet.sleep(1)
 
             except Exception as e:
                 LOG.warning(_LW("subscriber listening task lost "

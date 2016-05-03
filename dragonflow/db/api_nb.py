@@ -206,8 +206,6 @@ class NbApi(object):
             self.db_recover_callback()
             return
 
-        self.controller.vswitch_api.sync()
-
         if 'secgroup' == table:
             if action == 'set' or action == 'create':
                 secgroup = SecurityGroup(value)
