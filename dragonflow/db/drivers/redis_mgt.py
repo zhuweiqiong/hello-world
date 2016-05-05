@@ -10,23 +10,21 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import random
+import redis
+import six
+import string
+
+import eventlet
 
 from dragonflow._i18n import _LI, _LE, _LW
 from dragonflow.common import utils as df_utils
 from dragonflow.db.db_common import DbUpdate
 from dragonflow.db.drivers import redis_calckey
 
-
-import eventlet
-
 from oslo_log import log
 from oslo_serialization import jsonutils
 
-
-import random
-import redis
-import six
-import string
 
 LOG = log.getLogger(__name__)
 
@@ -269,12 +267,14 @@ class RedisMgt(object):
                     changed = True
         else:
             # This scenario can be considerd as en exception and
-            # should be recovered by people. Assumed that no scale down in
+            # should be recovered manually. Assumed that no scale-down in
             # cluster.
             # Do not have to notify changes.
             LOG.warning(_LW("redis cluster nodes less than local, "
                             "maybe there is a partition in db "
-                            "cluster"))
+                            "cluster, nodes:%(new)s, "
+                            "local nodes:%(local)s")
+                        % {'new': new_nodes, 'local': old_nodes})
 
         return changed
 

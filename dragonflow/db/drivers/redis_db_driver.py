@@ -48,6 +48,14 @@ class RedisDbDriver(db_api.DbApi):
     def support_publish_subscribe(self):
         return True
 
+    def _handle_db_oper_error(self, ip_port, local_key=None, e=None):
+        self.redis_mgt.remove_node_from_master_list(ip_port)
+        self._update_server_list()
+
+        if local_key is not None:
+            LOG.exception(_LE("exception %(key)s: %(e)s")
+                          % {'key': local_key, 'e': e})
+
     def get_key(self, table, key, topic=None):
         ip_port = None
         if topic is None:
@@ -59,10 +67,7 @@ class RedisDbDriver(db_api.DbApi):
                     if len(local_keys) == 1:
                         return client.get(local_keys[0])
             except Exception as e:
-                self.redis_mgt.remove_node_from_master_list(ip_port)
-                self._update_server_list()
-                LOG.exception(_LE("exception %(key)s: %(e)s")
-                              % {'key': local_key, 'e': e})
+                self._handle_db_oper_error(ip_port, local_key, e)
                 # raise df_exceptions.DBKeyNotFound(key=local_key)
         else:
             local_key = self.uuid_to_key(table, key, topic)
@@ -74,10 +79,7 @@ class RedisDbDriver(db_api.DbApi):
                 # return nil if not found
                 return client.get(local_key)
             except Exception as e:
-                self.redis_mgt.remove_node_from_master_list(ip_port)
-                self._update_server_list()
-                LOG.exception(_LE("exception %(key)s: %(e)s")
-                              % {'key': local_key, 'e': e})
+                self._handle_db_oper_error(ip_port, local_key, e)
                 # raise df_exceptions.DBKeyNotFound(key=local_key)
 
     def set_key(self, table, key, value, topic=None):
@@ -95,10 +97,7 @@ class RedisDbDriver(db_api.DbApi):
                 client.delete(local_key)
             return res
         except Exception as e:
-            self.redis_mgt.remove_node_from_master_list(ip_port)
-            self._update_server_list()
-            LOG.exception(_LE("exception %(key)s: %(e)s")
-                          % {'key': local_key, 'e': e})
+            self._handle_db_oper_error(ip_port, local_key, e)
             # raise df_exceptions.DBKeyNotFound(key=local_key)
 
     def create_key(self, table, key, value, topic=None):
@@ -117,10 +116,7 @@ class RedisDbDriver(db_api.DbApi):
             ret = client.wait(1, 1000)
             return ret
         except Exception as e:
-            self.redis_mgt.remove_node_from_master_list(ip_port)
-            self._update_server_list()
-            LOG.exception(_LE("exception %(key)s: %(e)s")
-                          % {'key': local_key, 'e': e})
+            self._handle_db_oper_error(ip_port, local_key, e)
             # raise df_exceptions.DBKeyNotFound(key=local_key)
 
     def get_all_entries(self, table, topic=None):
@@ -137,10 +133,7 @@ class RedisDbDriver(db_api.DbApi):
                             res.append(client.get(tmp_key))
                 return res
             except Exception as e:
-                self.redis_mgt.remove_node_from_master_list(ip_port)
-                self._update_server_list()
-                LOG.exception(_LE("exception %(key)s: %(e)s")
-                              % {'key': local_key, 'e': e})
+                self._handle_db_oper_error(ip_port, local_key, e)
                 # raise df_exceptions.DBKeyNotFound(key=local_key)
         else:
             local_key = self.uuid_to_key(table, '*', topic)
@@ -155,10 +148,7 @@ class RedisDbDriver(db_api.DbApi):
                     res.extend(client.mget(local_keys))
                 return res
             except Exception as e:
-                self.redis_mgt.remove_node_from_master_list(ip_port)
-                self._update_server_list()
-                LOG.exception(_LE("exception %(key)s: %(e)s")
-                              % {'key': local_key, 'e': e})
+                self._handle_db_oper_error(ip_port, local_key, e)
                 # raise df_exceptions.DBKeyNotFound(key=local_key)
 
     def get_all_keys(self, table, topic=None):
@@ -172,10 +162,7 @@ class RedisDbDriver(db_api.DbApi):
                     res.extend(client.keys(local_key))
                 return res
             except Exception as e:
-                self.redis_mgt.remove_node_from_master_list(ip_port)
-                self._update_server_list()
-                LOG.exception(_LE("exception %(key)s: %(e)s")
-                              % {'key': local_key, 'e': e})
+                self._handle_db_oper_error(ip_port, local_key, e)
                 # raise df_exceptions.DBKeyNotFound(key=local_key)
         else:
             local_key = self.uuid_to_key(table, '*', topic)
@@ -187,11 +174,8 @@ class RedisDbDriver(db_api.DbApi):
                 res = client.keys(local_key)
                 return res
             except Exception as e:
-                self.redis_mgt.remove_node_from_master_list(ip_port)
-                self._update_server_list()
-                LOG.exception(_LE("exception %(key)s: %(e)s")
-                              % {'key': local_key, 'e': e})
-            # raise df_exceptions.DBKeyNotFound(key=local_key)
+                self._handle_db_oper_error(ip_port, local_key, e)
+                # raise df_exceptions.DBKeyNotFound(key=local_key)
 
     def _allocate_unique_key(self):
         local_key = self.uuid_to_key('tunnel_key', 'key', None)
@@ -202,9 +186,8 @@ class RedisDbDriver(db_api.DbApi):
             if client is None:
                 return None
             return client.incr(local_key)
-        except Exception:
-            self.redis_mgt.remove_node_from_master_list(ip_port)
-            self._update_server_list()
+        except Exception as e:
+            self._handle_db_oper_error(ip_port, local_key, e)
             # raise e
 
     def allocate_unique_key(self):

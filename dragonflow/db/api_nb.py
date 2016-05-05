@@ -63,18 +63,18 @@ class NbApi(object):
                 self.publisher.initialize()
                 self._start_db_table_monitors()
                 # Start a thread to detect DB failover in Plugin
-                self.publisher.set_publisher_for_failover(self.publisher,
-                                                          self.
-                                                          db_recover_callback)
+                self.publisher.set_publisher_for_failover(
+                    self.publisher,
+                    self.db_recover_callback)
                 self.publisher.start_detect_for_failover()
             else:
                 # NOTE(gampel) we want to start queuing event as soon
                 # as possible
                 self._start_subsciber()
                 # Register for DB Failover detection in NB Plugin
-                self.subscriber.set_subscriber_for_failover(self.subscriber,
-                                                            self.
-                                                            db_change_callback)
+                self.subscriber.set_subscriber_for_failover(
+                    self.subscriber,
+                    self.db_change_callback)
                 self.subscriber.register_hamsg_for_db()
 
     def db_recover_callback(self):

@@ -112,24 +112,10 @@ class PublisherApi(object):
         """
 
     def set_publisher_for_failover(self, pub, callback):
-        handler_name = '_set_publisher_to_mgt'
-
-        try:
-            handler = getattr(self, handler_name, None)
-            if handler is not None:
-                handler(pub, callback)
-        except Exception as e:
-            LOG.exception(e)
+        pass
 
     def start_detect_for_failover(self):
-        handler_name = '_start_detect_task'
-
-        try:
-            handler = getattr(self, handler_name, None)
-            if handler is not None:
-                handler()
-        except Exception as e:
-            LOG.exception(e)
+        pass
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -242,27 +228,14 @@ class SubscriberAgentBase(SubscriberApi):
         self.topic_list.remove(topic)
 
     def set_subscriber_for_failover(self, sub, callback):
-        handler_name = '_set_subscriber_to_mgt'
-
-        try:
-            handler = getattr(self, handler_name, None)
-            if handler is not None:
-                handler(sub, callback)
-        except Exception as e:
-            LOG.exception(e)
+        pass
 
     def register_hamsg_for_db(self):
-        handler_name = '_register_ha'
-
-        try:
-            handler = getattr(self, handler_name, None)
-            if handler is not None:
-                handler()
-        except Exception as e:
-            LOG.exception(e)
+        pass
 
 
 class TableMonitor(object):
+
     def __init__(self, table_name, driver, publisher, polling_time=10):
         self._driver = driver
         self._publisher = publisher
@@ -315,6 +288,7 @@ class TableMonitor(object):
 
 
 class StalePublisherMonitor(TableMonitor):
+
     def __init__(self, driver, publisher, timeout, polling_time=10):
         super(StalePublisherMonitor, self).__init__(
             PUBLISHER_TABLE,

@@ -97,10 +97,10 @@ class RedisPublisherAgent(pub_sub_api.PublisherApi):
                 LOG.exception(_LE("publish error remote:%(remote)s")
                               % {'remote': self.remote})
 
-    def _set_publisher_to_mgt(self, pub, callback):
+    def set_publisher_for_failover(self, pub, callback):
         self.redis_mgt.set_publisher(pub, callback)
 
-    def _start_detect_task(self):
+    def start_detect_for_failover(self):
         # only start in NB plugin
         if self.redis_mgt is not None:
 
@@ -157,10 +157,10 @@ class RedisSubscriberAgent(pub_sub_api.SubscriberAgentBase):
     def unregister_topic(self, topic):
         self.pub_sub.unsubscribe(topic)
 
-    def _set_subscriber_to_mgt(self, sub, callback):
+    def set_subscriber_for_failover(self, sub, callback):
         self.redis_mgt.set_subscriber(sub, callback)
 
-    def _register_ha(self):
+    def register_hamsg_for_db(self):
         if self.redis_mgt is not None:
             self.redis_mgt.register_ha_topic()
         else:
