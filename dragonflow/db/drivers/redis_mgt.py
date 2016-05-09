@@ -253,20 +253,30 @@ class RedisMgt(object):
                 for new_host, new_info in six.iteritems(new_nodes):
                     if host == new_host and info['role'] == \
                             new_info['role']:
+                        if info['slots'] != new_info['slots']:
+                            # scale-up reshard
+                            changed = True
+                            break
+
                         cnt += 1
                         if new_info['role'] == 'master':
                             master_cnt += 1
                         else:
                             slave_cnt += 1
                         break
-            if master_cnt != slave_cnt:
-                # this means a tmp status
-                LOG.info(_LI("master nodes not equals to slave nodes"))
-            else:
-                if cnt != len(old_nodes):
-                    changed = True
+
+                if changed:
+                    break
+
+            if not changed:
+                if master_cnt != slave_cnt:
+                    # this means a tmp status
+                    LOG.info(_LI("master nodes not equals to slave nodes"))
+                else:
+                    if cnt != len(old_nodes):
+                        changed = True
         else:
-            # This scenario can be considerd as en exception and
+            # This scenario can be considered as en exception and
             # should be recovered manually. Assumed that no scale-down in
             # cluster.
             # Do not have to notify changes.

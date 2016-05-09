@@ -16,6 +16,7 @@ from dragonflow.db import db_api
 from dragonflow.db.drivers.redis_mgt import RedisMgt
 from oslo_log import log
 
+import re
 import redis
 import six
 
@@ -68,7 +69,7 @@ class RedisDbDriver(db_api.DbApi):
                         return client.get(local_keys[0])
             except Exception as e:
                 self._handle_db_oper_error(ip_port, local_key, e)
-                # raise df_exceptions.DBKeyNotFound(key=local_key)
+
         else:
             local_key = self.uuid_to_key(table, key, topic)
             try:
@@ -80,7 +81,6 @@ class RedisDbDriver(db_api.DbApi):
                 return client.get(local_key)
             except Exception as e:
                 self._handle_db_oper_error(ip_port, local_key, e)
-                # raise df_exceptions.DBKeyNotFound(key=local_key)
 
     def set_key(self, table, key, value, topic=None):
         local_key = self.uuid_to_key(table, key, topic)
@@ -90,15 +90,13 @@ class RedisDbDriver(db_api.DbApi):
             client = self._get_client(local_key)
             if client is None:
                 return 0
-            client.set(local_key, value)
-            # make sure the write committed to 1 slave node
-            res = client.wait(1, 1000)
+            res = client.set(local_key, value)
+
             if not res:
                 client.delete(local_key)
             return res
         except Exception as e:
             self._handle_db_oper_error(ip_port, local_key, e)
-            # raise df_exceptions.DBKeyNotFound(key=local_key)
 
     def create_key(self, table, key, value, topic=None):
         return self.set_key(table, key, value, topic)
@@ -112,12 +110,10 @@ class RedisDbDriver(db_api.DbApi):
             client = self._get_client(local_key)
             if client is None:
                 return 0
-            client.delete(local_key)
-            ret = client.wait(1, 1000)
+            ret = client.delete(local_key)
             return ret
         except Exception as e:
             self._handle_db_oper_error(ip_port, local_key, e)
-            # raise df_exceptions.DBKeyNotFound(key=local_key)
 
     def get_all_entries(self, table, topic=None):
         res = []
@@ -134,7 +130,7 @@ class RedisDbDriver(db_api.DbApi):
                 return res
             except Exception as e:
                 self._handle_db_oper_error(ip_port, local_key, e)
-                # raise df_exceptions.DBKeyNotFound(key=local_key)
+
         else:
             local_key = self.uuid_to_key(table, '*', topic)
             try:
@@ -149,7 +145,6 @@ class RedisDbDriver(db_api.DbApi):
                 return res
             except Exception as e:
                 self._handle_db_oper_error(ip_port, local_key, e)
-                # raise df_exceptions.DBKeyNotFound(key=local_key)
 
     def get_all_keys(self, table, topic=None):
         res = []
@@ -160,10 +155,10 @@ class RedisDbDriver(db_api.DbApi):
                 for host, client in six.iteritems(self.clients):
                     ip_port = host
                     res.extend(client.keys(local_key))
-                return res
+                return [self._strip_table_name_from_key(key) for key in res]
             except Exception as e:
                 self._handle_db_oper_error(ip_port, local_key, e)
-                # raise df_exceptions.DBKeyNotFound(key=local_key)
+
         else:
             local_key = self.uuid_to_key(table, '*', topic)
             try:
@@ -171,11 +166,17 @@ class RedisDbDriver(db_api.DbApi):
                 client = self._get_client(local_key)
                 if client is None:
                     return res
+
                 res = client.keys(local_key)
-                return res
+                return [self._strip_table_name_from_key(key) for key in res]
+
             except Exception as e:
                 self._handle_db_oper_error(ip_port, local_key, e)
-                # raise df_exceptions.DBKeyNotFound(key=local_key)
+
+    def _strip_table_name_from_key(self, key):
+        regex = '^{.*}\\.(.*)$'
+        m = re.match(regex, key)
+        return m.group(1)
 
     def _allocate_unique_key(self):
         local_key = self.uuid_to_key('tunnel_key', 'key', None)
@@ -188,7 +189,6 @@ class RedisDbDriver(db_api.DbApi):
             return client.incr(local_key)
         except Exception as e:
             self._handle_db_oper_error(ip_port, local_key, e)
-            # raise e
 
     def allocate_unique_key(self):
         try:
