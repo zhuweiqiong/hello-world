@@ -117,6 +117,9 @@ class PublisherApi(object):
     def start_detect_for_failover(self):
         pass
 
+    def process_ha(self):
+        pass
+
 
 @six.add_metaclass(abc.ABCMeta)
 class SubscriberApi(object):
@@ -231,6 +234,9 @@ class SubscriberAgentBase(SubscriberApi):
         pass
 
     def register_hamsg_for_db(self):
+        pass
+
+    def process_ha(self):
         pass
 
 

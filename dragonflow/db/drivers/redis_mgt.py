@@ -29,6 +29,15 @@ from oslo_serialization import jsonutils
 LOG = log.getLogger(__name__)
 
 
+def enum(**enums):
+    return type('Enum', (), enums)
+
+RET_CODE = enum(
+    NOT_CHANGE=0,
+    NODES_CHANGE=1,
+    SLOTS_CHANGE=2)
+
+
 class RedisMgt(object):
 
     redisMgt = {}
@@ -237,36 +246,45 @@ class RedisMgt(object):
 
     # check if cluster topo changed
     def _check_nodes_change(self, old_nodes, new_nodes):
-        changed = False
+        changed = RET_CODE.NOT_CHANGE
 
         if len(old_nodes) < len(new_nodes):
-            changed = True
+            changed = RET_CODE.NODES_CHANGE
         elif len(old_nodes) == len(new_nodes):
             if 0 == len(old_nodes) and 0 == len(new_nodes):
-                return False
+                return changed
 
             cnt = 0
             master_cnt = 0
             slave_cnt = 0
+            slot_changed = False
 
             for host, info in six.iteritems(old_nodes):
                 for new_host, new_info in six.iteritems(new_nodes):
                     if host == new_host and info['role'] == \
                             new_info['role']:
+                        if info['slots'] != new_info['slots']:
+                            # scale-up reshard
+                            slot_changed = True
+
                         cnt += 1
                         if new_info['role'] == 'master':
                             master_cnt += 1
                         else:
                             slave_cnt += 1
                         break
+
             if master_cnt != slave_cnt:
                 # this means a tmp status
+                # one master one slave
                 LOG.info(_LI("master nodes not equals to slave nodes"))
             else:
                 if cnt != len(old_nodes):
-                    changed = True
+                    changed = RET_CODE.NODES_CHANGE
+                elif slot_changed:
+                    changed = RET_CODE.SLOTS_CHANGE
         else:
-            # This scenario can be considerd as en exception and
+            # This scenario can be considered as en exception and
             # should be recovered manually. Assumed that no scale-down in
             # cluster.
             # Do not have to notify changes.
@@ -278,11 +296,17 @@ class RedisMgt(object):
 
         return changed
 
+    # To receive the HA messages from neutron plugin
     def redis_failover_callback(self, new_nodes):
-        # To receive the NB HA message
         changed = self._check_nodes_change(self.cluster_nodes, new_nodes)
 
-        if changed:
+        if changed == RET_CODE.SLOTS_CHANGE:
+            # update local nodes
+            # don't need re-sync
+            self.cluster_nodes = new_nodes
+            self.master_list = self._parse_to_masterlist()
+
+        elif changed == RET_CODE.NODES_CHANGE:
             # update local nodes
             self.cluster_nodes = new_nodes
             self.master_list = self._parse_to_masterlist()
@@ -324,8 +348,8 @@ class RedisMgt(object):
 
     def run(self):
         while True:
-            # fetch cluster topology info every 5 sec
-            eventlet.sleep(5)
+            # fetch cluster topology info every 10 sec
+            eventlet.sleep(10)
             try:
                 nodes = self.get_cluster_topology_by_all_nodes()
                 if len(nodes) > 0:
