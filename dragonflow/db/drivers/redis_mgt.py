@@ -101,14 +101,17 @@ class RedisMgt(object):
     def _release_node(self, node):
         node.connection_pool.get_connection(None, None).disconnect()
 
-    # def read_cluster_topology(self):
-    #     self.cluster_nodes = self._get_cluster_nodes(self.default_node)
-    #     self.master_list = self._parse_to_masterlist()
-
     def _parse_node_line(self, line):
         line_items = line.split(' ')
         ret = line_items[:8]
-        slots = [sl.split('-') for sl in line_items[8:]]
+        slots = []
+        for sl in line_items[8:]:
+            slot_range = sl.split('-')
+            # this is to avoid the tmp state when resharding such as:
+            # 0-2111 [2112-<-ee248550472a0ddee8857969b7e2ee832fd6cce0]
+            if len(slot_range) < 3:
+                slots.append(slot_range)
+
         ret.append(slots)
 
         return ret

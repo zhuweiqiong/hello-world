@@ -66,7 +66,7 @@ class RedisDbDriver(db_api.DbApi):
     def _gen_args(self, local_key, value):
         args = []
         args.append(local_key)
-        if value is None:
+        if value is not None:
             args.append(value)
 
         return args
@@ -102,6 +102,8 @@ class RedisDbDriver(db_api.DbApi):
                 return client.execute_command(oper, *arg)
             except ConnectionError as e:
                 self._handle_db_conn_error(ip_port, local_key, e)
+                LOG.exception(_LE("connection error while sending "
+                                  "request to db: %(e)s") % {'e': e})
                 raise e
             except ResponseError as e:
                 resp = str(e).split(' ')
@@ -121,6 +123,7 @@ class RedisDbDriver(db_api.DbApi):
                                   % {'e': e})
                     raise e
             except Exception as e:
+                self._handle_db_conn_error(ip_port, local_key, e)
                 LOG.exception(_LE("exception while sending request to "
                                   "db: %(e)s") % {'e': e})
                 raise e
