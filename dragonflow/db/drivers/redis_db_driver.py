@@ -55,13 +55,13 @@ class RedisDbDriver(db_api.DbApi):
     def support_publish_subscribe(self):
         return True
 
-    def _handle_db_conn_error(self, ip_port, local_key=None, e=None):
+    def _handle_db_conn_error(self, ip_port, local_key=None):
         self.redis_mgt.remove_node_from_master_list(ip_port)
         self._update_server_list()
 
         if local_key is not None:
-            LOG.exception(_LE("exception %(key)s: %(e)s")
-                          % {'key': local_key, 'e': e})
+            LOG.exception(_LE("update server list, key: %(key)s")
+                          % {'key': local_key})
 
     def _gen_args(self, local_key, value):
         args = []
@@ -101,14 +101,17 @@ class RedisDbDriver(db_api.DbApi):
 
                 return client.execute_command(oper, *arg)
             except ConnectionError as e:
-                self._handle_db_conn_error(ip_port, local_key, e)
+                self._handle_db_conn_error(ip_port, local_key)
                 LOG.exception(_LE("connection error while sending "
                                   "request to db: %(e)s") % {'e': e})
                 raise e
             except ResponseError as e:
                 resp = str(e).split(' ')
                 if 'ASK' in resp[0]:
+                    # one-time flag to force a node to serve a query about an
+                    # IMPORTING slot
                     asking = True
+
                 if 'ASK' in resp[0] or 'MOVE' in resp[0]:
                     # MOVED/ASK XXX X.X.X.X:X
                     # do redirection
@@ -123,7 +126,7 @@ class RedisDbDriver(db_api.DbApi):
                                   % {'e': e})
                     raise e
             except Exception as e:
-                self._handle_db_conn_error(ip_port, local_key, e)
+                self._handle_db_conn_error(ip_port, local_key)
                 LOG.exception(_LE("exception while sending request to "
                                   "db: %(e)s") % {'e': e})
                 raise e
@@ -208,7 +211,9 @@ class RedisDbDriver(db_api.DbApi):
                     res.extend(client.mget(local_keys))
                 return res
             except Exception as e:
-                self._handle_db_conn_error(ip_port, local_key, e)
+                self._handle_db_conn_error(ip_port, local_key)
+                LOG.exception(_LE("exception when mget: %(key)s, %(e)s")
+                              % {'key': local_key, 'e': e})
 
     def get_all_keys(self, table, topic=None):
         res = []
@@ -221,7 +226,10 @@ class RedisDbDriver(db_api.DbApi):
                     res.extend(client.keys(local_key))
                 return [self._strip_table_name_from_key(key) for key in res]
             except Exception as e:
-                self._handle_db_conn_error(ip_port, local_key, e)
+                self._handle_db_conn_error(ip_port, local_key)
+                LOG.exception(_LE("exception when get_all_keys: "
+                                  "%(key)s, %(e)s")
+                              % {'key': local_key, 'e': e})
 
         else:
             local_key = self.uuid_to_key(table, '*', topic)
@@ -235,7 +243,10 @@ class RedisDbDriver(db_api.DbApi):
                 return [self._strip_table_name_from_key(key) for key in res]
 
             except Exception as e:
-                self._handle_db_conn_error(ip_port, local_key, e)
+                self._handle_db_conn_error(ip_port, local_key)
+                LOG.exception(_LE("exception when get_all_keys: "
+                                  "%(key)s, %(e)s")
+                              % {'key': local_key, 'e': e})
 
     def _strip_table_name_from_key(self, key):
         regex = '^{.*}\\.(.*)$'
@@ -252,7 +263,9 @@ class RedisDbDriver(db_api.DbApi):
                 return None
             return client.incr(local_key)
         except Exception as e:
-            self._handle_db_conn_error(ip_port, local_key, e)
+            self._handle_db_conn_error(ip_port, local_key)
+            LOG.exception(_LE("exception when incr: %(key)s, %(e)s")
+                          % {'key': local_key, 'e': e})
 
     def allocate_unique_key(self):
         try:
