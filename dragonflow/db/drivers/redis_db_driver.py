@@ -117,6 +117,8 @@ class RedisDbDriver(db_api.DbApi):
                     # do redirection
                     client = self._get_client(host=resp[2])
                     if client is None:
+                        # maybe there is a fast failover
+                        self._handle_db_conn_error(ip_port, local_key)
                         LOG.exception(_LE("no client available: "
                                           "%(ip_port)s, %(e)s")
                                       % {'ip_port': resp[2], 'e': e})
@@ -195,7 +197,8 @@ class RedisDbDriver(db_api.DbApi):
                             res.append(self._execute_cmd("GET", tmp_key))
                 return res
             except Exception:
-                LOG.exception(_LE("exception when get_all_entries: %(key)s ")
+                LOG.exception(_LE("exception when get_all_entries: "
+                                  "%(key)s ")
                               % {'key': local_key})
 
         else:
