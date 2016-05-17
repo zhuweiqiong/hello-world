@@ -222,6 +222,7 @@ class RedisSubscriberAgent(pub_sub_api.SubscriberAgentBase):
                     self._update_client()
                     # todo if pubsub not none notify restart
                     # to re-subscribe
+                    self.register_hamsg_for_db()
                     self.db_changes_callback(None, None, 'dbrestart', None,
                                              None)
                     LOG.exception(_LE("reconnect error %(ip)s:%(port)s")
