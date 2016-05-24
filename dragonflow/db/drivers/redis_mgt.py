@@ -317,7 +317,7 @@ class RedisMgt(object):
             # send restart message
             if self._check_master_nodes_connection():
                 if self.db_callback is not None:
-                    self.db_callback(None, None, 'dbrestart', None, None)
+                    self.db_callback(None, None, 'dbrestart', False, None)
                 elif self.db_recover_callback is not None:
                     self.db_recover_callback()
 

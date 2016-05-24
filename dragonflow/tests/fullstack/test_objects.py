@@ -41,12 +41,13 @@ def find_first_network(nclient, params):
 
 
 def get_port_by_mac(neutron, vm_mac):
-    ports = neutron.list_ports()
-    if ports is None:
+    ports = neutron.list_ports(mac_address=vm_mac)
+    if not ports:
         return None
-    for port in ports['ports']:
-        if vm_mac == port['mac_address']:
-            return port
+    ports = ports.get('ports', None)
+    if not ports:
+        return None
+    return ports[0]
 
 
 class RouterTestObj(object):
@@ -81,10 +82,9 @@ class RouterTestObj(object):
         self.closed = True
 
     def exists(self):
-        routers = self.nb_api.get_routers()
-        for router in routers:
-            if router.get_name() == self.router_id:
-                return True
+        router = self.nb_api.get_router(self.router_id)
+        if router:
+            return True
         return False
 
     def add_interface(self, port_id=None, subnet_id=None):
@@ -117,10 +117,9 @@ class SecGroupTestObj(object):
         self.closed = True
 
     def exists(self):
-        secgroups = self.nb_api.get_security_groups()
-        for secgroup in secgroups:
-            if secgroup.name == self.secgroup_id:
-                return True
+        secgroup = self.nb_api.get_security_group(self.secgroup_id)
+        if secgroup:
+            return True
         return False
 
     def rule_create(self, secrule={'ethertype': 'IPv4',
@@ -134,12 +133,11 @@ class SecGroupTestObj(object):
         self.neutron.delete_security_group_rule(secrule_id)
 
     def rule_exists(self, secrule_id):
-        secgroups = self.nb_api.get_security_groups()
-        for secgroup in secgroups:
-            if secgroup.name == self.secgroup_id:
-                for rule in secgroup.rules:
-                    if rule.id == secrule_id:
-                        return True
+        secgroup = self.nb_api.get_security_group(self.secgroup_id)
+        if secgroup:
+            for rule in secgroup.get_rules():
+                if rule.get_id() == secrule_id:
+                    return True
         return False
 
 
@@ -194,9 +192,9 @@ class VMTestObj(object):
         creds = test_base.credentials()
         auth_url = creds['auth_url'] + "/v2.0"
         self.nova = novaclient.Client('2', creds['username'],
-                        creds['password'], 'demo', auth_url)
+                        creds['password'], creds['project_name'], auth_url)
 
-    def create(self, network=None, script=None):
+    def create(self, network=None, script=None, security_groups=None):
         image = self.nova.images.find(name="cirros-0.3.4-x86_64-uec")
         self.parent.assertIsNotNone(image)
         flavor = self.nova.flavors.find(name="m1.tiny")
@@ -207,8 +205,9 @@ class VMTestObj(object):
             net_id = find_first_network(self.neutron, name='private')['id']
         self.parent.assertIsNotNone(net_id)
         nics = [{'net-id': net_id}]
-        self.server = self.nova.servers.create(name='test', image=image.id,
-                           flavor=flavor.id, nics=nics, user_data=script)
+        self.server = self.nova.servers.create(
+            name='test', image=image.id, flavor=flavor.id, nics=nics,
+            user_data=script, security_groups=security_groups)
         self.parent.assertIsNotNone(self.server)
         server_is_ready = self._wait_for_server_ready(30)
         self.parent.assertTrue(server_is_ready)
@@ -225,21 +224,29 @@ class VMTestObj(object):
             timeout = timeout - 1
         return False
 
-    def _wait_for_server_delete(self, vm_mac, timeout=60):
+    def _wait_for_server_delete(self, timeout=60):
         if self.server is None:
             return
         wait_until_none(
-            lambda: get_port_by_mac(self.neutron, vm_mac),
+            self._get_VM_port,
             timeout,
             exception=Exception('VM is not deleted')
         )
 
+    def _get_VM_port(self):
+        ports = self.neutron.list_ports(device_id=self.server.id)
+        if not ports:
+            return None
+        ports = ports.get('ports', None)
+        if not ports:
+            return None
+        return ports[0]
+
     def close(self):
         if self.closed or self.server is None:
             return
-        vm_first_mac = self.get_first_mac()
         self.nova.servers.delete(self.server)
-        self._wait_for_server_delete(vm_first_mac)
+        self._wait_for_server_delete()
         self.closed = True
 
     def exists(self):
@@ -266,7 +273,12 @@ class VMTestObj(object):
     def get_first_mac(self):
         if self.server is None:
             return None
-        return self.server.addresses.values()[0][0]['OS-EXT-IPS-MAC:mac_addr']
+        try:
+            return self.server.addresses.values()[0][0][
+                'OS-EXT-IPS-MAC:mac_addr'
+            ]
+        except (KeyError, IndexError):
+            return None
 
 
 class SubnetTestObj(object):
@@ -334,6 +346,15 @@ class PortTestObj(object):
         self.port_id = port['port']['id']
         return self.port_id
 
+    def update(self, port=None):
+        if not port:
+            port = {
+                'admin_state_up': True,
+                'name': 'port2',
+            }
+        port = self.neutron.update_port(self.port_id, body={'port': port})
+        return port['port']
+
     def get_logical_port(self):
         return self.nb_api.get_logical_port(self.port_id)
 
@@ -388,7 +409,7 @@ class FloatingipTestObj(object):
     def wait_until_fip_active(self, timeout=5, sleep=1, exception=None):
         def internal_predicate():
             fip = self.get_floatingip()
-            if fip and fip.status == 'ACTIVE':
+            if fip and fip.get_status() == 'ACTIVE':
                 return True
             return False
         wait_until_true(internal_predicate, timeout, sleep, exception)

@@ -55,6 +55,14 @@ class RedisDbDriver(db_api.DbApi):
     def support_publish_subscribe(self):
         return True
 
+    def create_table(self, table):
+        # Not needed in redis
+        pass
+
+    def delete_table(self, table):
+        # Not needed in redis
+        pass
+
     def _handle_db_conn_error(self, ip_port, local_key=None):
         self.redis_mgt.remove_node_from_master_list(ip_port)
         self._update_server_list()

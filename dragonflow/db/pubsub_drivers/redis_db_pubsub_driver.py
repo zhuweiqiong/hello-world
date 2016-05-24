@@ -214,17 +214,22 @@ class RedisSubscriberAgent(pub_sub_api.SubscriberAgentBase):
                     connection.connect()
                     self.pub_sub.on_connect(connection)
                     # self.db_changes_callback(None, None, 'sync', None, None)
-                    # todo notify restart
-                    self.db_changes_callback(None, None, 'dbrestart', None,
+                    # notify restart
+                    self.db_changes_callback(None, None, 'dbrestart', False,
                                              None)
                 except Exception:
                     self.redis_mgt.remove_node_from_master_list(self.remote)
                     self._update_client()
-                    # todo if pubsub not none notify restart
-                    # to re-subscribe
-                    self.register_hamsg_for_db()
-                    self.db_changes_callback(None, None, 'dbrestart', None,
-                                             None)
+                    # if pubsub not none notify restart
+                    if self.remote is not None:
+                        # to re-subscribe
+                        self.register_hamsg_for_db()
+                        self.db_changes_callback(None, None, 'dbrestart',
+                                                 True, None)
+                    else:
+                        LOG.warning(_LW("there is no more db node "
+                                        "available"))
+
                     LOG.exception(_LE("reconnect error %(ip)s:%(port)s")
                                   % {'ip': self.ip,
                                      'port': self.plugin_updates_port})

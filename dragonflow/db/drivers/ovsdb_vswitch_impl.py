@@ -174,16 +174,20 @@ class OvsdbSwitchApi(api_vswitch.SwitchApi):
     def check_controller(self, target):
         is_controller_set = False
         br_int = idlutils.row_by_value(self.idl, 'Bridge', 'name', 'br-int')
-        if br_int.controller[0].target == target:
+        # if controller is not set, len(controller) is 0
+        if br_int is not None and (
+           len(br_int.controller) > 0 and
+           br_int.controller[0].target == target):
             is_controller_set = True
         return is_controller_set
 
     def check_controller_fail_mode(self, fail_mode):
         is_fail_mode_set = False
         br_int = idlutils.row_by_value(self.idl, 'Bridge', 'name', 'br-int')
-        if br_int is not None and\
-           br_int.fail_mode is not [] and\
-           br_int.fail_mode[0] == fail_mode:
+        # if fail_mode is not set, len(fail_mode) is 0
+        if br_int is not None and (
+           len(br_int.fail_mode) > 0 and
+           br_int.fail_mode[0] == fail_mode):
             is_fail_mode_set = True
         return is_fail_mode_set
 
@@ -371,7 +375,7 @@ class AddTunnelPort(BaseCommand):
     def run_idl(self, txn):
         bridge = idlutils.row_by_value(self.api.idl, 'Bridge',
                                        'name', 'br-int')
-        port_name = "df-" + self.chassis.get_name()
+        port_name = "df-" + self.chassis.get_id()
 
         interface = txn.insert(self.api.idl.tables['Interface'])
         interface.name = port_name
@@ -388,7 +392,7 @@ class AddTunnelPort(BaseCommand):
         ifaces.append(interface)
         port.interfaces = ifaces
         external_ids_dict = getattr(interface, 'external_ids', {})
-        external_ids_dict['df-chassis-id'] = self.chassis.get_name()
+        external_ids_dict['df-chassis-id'] = self.chassis.get_id()
         port.external_ids = external_ids_dict
 
         bridge.verify('ports')
